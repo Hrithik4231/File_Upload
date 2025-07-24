@@ -363,3 +363,332 @@ class ChatWithPDFUI:
             
         except Exception as e:
             return f"Error generating answer: {str(e)}"
+
+
+
+# import streamlit as st
+# from google.generativeai.generative_models import GenerativeModel
+# from typing import List, Dict, Optional
+# import time
+
+# class ChatWithPDFUI:
+#     """Chat UI that uses ChromaDB for document retrieval"""
+    
+#     def __init__(self, file_manager, chat_sidebar, chat_memory):
+#         self.file_manager = file_manager
+#         self.chat_sidebar = chat_sidebar
+#         self.chat_memory = chat_memory
+        
+#         # Configure Gemini API (you'll need to set this up)
+#         # genai.configure(api_key="YOUR_API_KEY")  # Replace with your API key
+#         self.model = None
+#         try:
+#             self.model = GenerativeModel('gemini-pro')
+#         except Exception as e:
+#             st.error(f"Error initializing Gemini model: {str(e)}")
+    
+#     def run(self):
+#         st.header("💬 Chat with PDF")
+        
+#         # Check if switched from view uploads
+#         if st.session_state.get('switch_to_chat', False):
+#             st.session_state.switch_to_chat = False
+        
+#         # Get available files
+#         metadata = self.file_manager.load_metadata()
+        
+#         if not metadata:
+#             st.info("📝 No documents found. Upload a document first to start chatting!")
+#             if st.button("📤 Go to Upload"):
+#                 st.session_state.current_tab = "upload"
+#                 st.rerun()
+#             return
+        
+#         # File selection (if not already selected)
+#         selected_file_id = st.session_state.get('selected_pdf_id')
+        
+#         if not selected_file_id or selected_file_id not in metadata:
+#             st.markdown("### 📋 Select a Document")
+#             self._display_file_selection(metadata)
+#             return
+        
+#         # Display selected file info
+#         selected_file = metadata[selected_file_id]
+#         self._display_selected_file_info(selected_file_id, selected_file)
+        
+#         # Chat interface
+#         self._display_chat_interface(selected_file_id, selected_file)
+    
+#     def _display_file_selection(self, metadata):
+#         """Display file selection interface"""
+#         st.markdown("Choose a document to start chatting:")
+        
+#         # Create columns for file cards
+#         files_per_row = 2
+#         file_items = list(metadata.items())
+        
+#         for i in range(0, len(file_items), files_per_row):
+#             cols = st.columns(files_per_row)
+            
+#             for j, (file_id, file_info) in enumerate(file_items[i:i+files_per_row]):
+#                 with cols[j]:
+#                     with st.container():
+#                         st.markdown(f"**📄 {file_info['filename']}**")
+#                         st.caption(f"Size: {self.file_manager.format_file_size(file_info['filesize'])}")
+#                         st.caption(f"Chunks: {file_info.get('chunk_count', 0)}")
+#                         st.caption(f"Uploaded: {self.file_manager.format_datetime(file_info['created_at'])}")
+                        
+#                         if st.button("💬 Chat with this file", key=f"select_{file_id}"):
+#                             st.session_state.selected_pdf_id = file_id
+#                             st.rerun()
+    
+#     def _display_selected_file_info(self, file_id, file_info):
+#         """Display information about the selected file"""
+#         col1, col2, col3 = st.columns([2, 1, 1])
+        
+#         with col1:
+#             st.markdown(f"**📄 Chatting with:** {file_info['filename']}")
+        
+#         with col2:
+#             st.markdown(f"**📊 Chunks:** {file_info.get('chunk_count', 0)}")
+        
+#         with col3:
+#             if st.button("🔄 Change File"):
+#                 st.session_state.selected_pdf_id = None
+#                 st.rerun()
+        
+#         st.markdown("---")
+    
+#     def _display_chat_interface(self, file_id, file_info):
+#         """Display the chat interface"""
+#         # Get or create current thread
+#         current_thread_id = st.session_state.get('current_thread_id')
+        
+#         # If no thread selected, show thread management
+#         if not current_thread_id:
+#             self._display_thread_management(file_id, file_info['filename'])
+#             return
+        
+#         # Display current thread messages
+#         self._display_thread_messages(current_thread_id)
+        
+#         # Chat input
+#         self._display_chat_input(current_thread_id, file_id, file_info['filename'])
+    
+#     def _display_thread_management(self, file_id, filename):
+#         """Display thread management interface"""
+#         st.markdown("### 💭 Chat Threads")
+        
+#         # Get existing threads for this file
+#         threads = self.chat_memory.get_threads_for_pdf(file_id)
+        
+#         if threads:
+#             st.markdown("**Existing Conversations:**")
+#             for thread in threads[:5]:  # Show last 5 threads
+#                 col1, col2 = st.columns([3, 1])
+                
+#                 with col1:
+#                     thread_title = thread.get('title', 'Untitled')
+#                     message_count = thread.get('message_count', 0)
+#                     updated_at = self.chat_memory.format_datetime(thread.get('updated_at'))
+                    
+#                     st.markdown(f"**{thread_title}**")
+#                     st.caption(f"{message_count} messages • {updated_at}")
+                
+#                 with col2:
+#                     if st.button("Continue", key=f"continue_{thread['thread_id']}"):
+#                         st.session_state.current_thread_id = thread['thread_id']
+#                         st.rerun()
+        
+#         # Start new conversation
+#         st.markdown("**Start New Conversation:**")
+#         with st.form("new_chat_form"):
+#             question = st.text_area(
+#                 "What would you like to ask about this document?",
+#                 placeholder="e.g., What is this document about? Summarize the main points...",
+#                 height=100
+#             )
+            
+#             if st.form_submit_button("🚀 Start Conversation", type="primary"):
+#                 if question.strip():
+#                     # Create new thread
+#                     thread_id = self.chat_memory.create_new_thread(file_id, filename, question)
+#                     st.session_state.current_thread_id = thread_id
+                    
+#                     # Process the first question
+#                     self._process_question(thread_id, file_id, question)
+#                     st.rerun()
+#                 else:
+#                     st.error("Please enter a question to start the conversation.")
+    
+#     def _display_thread_messages(self, thread_id):
+#         """Display messages in the current thread"""
+#         messages = self.chat_memory.load_thread_messages(thread_id)
+        
+#         if not messages:
+#             st.info("No messages in this conversation yet.")
+#             return
+        
+#         # Display messages
+#         for message in messages:
+#             # User question
+#             with st.chat_message("user"):
+#                 st.write(message['question'])
+            
+#             # Assistant response
+#             with st.chat_message("assistant"):
+#                 st.write(message['answer'])
+                
+#                 # Display sources if available
+#                 sources = message.get('sources', [])
+#                 if sources:
+#                     with st.expander(f"📚 Sources ({len(sources)} references)", expanded=False):
+#                         for i, source in enumerate(sources):
+#                             st.markdown(f"**Source {i+1}** (Page {source['page_number']}):")
+#                             st.text_area(
+#                                 f"Content from {source['filename']}",
+#                                 source['content'][:300] + ("..." if len(source['content']) > 300 else ""),
+#                                 height=80,
+#                                 key=f"source_{thread_id}_{i}_{message['timestamp']}"
+#                             )
+    
+#     def _display_chat_input(self, thread_id, file_id, filename):
+#         """Display chat input for asking questions"""
+#         st.markdown("---")
+        
+#         # Chat input form
+#         with st.form("chat_form", clear_on_submit=True):
+#             col1, col2 = st.columns([4, 1])
+            
+#             with col1:
+#                 question = st.text_input(
+#                     "Ask a question about the document:",
+#                     placeholder="What would you like to know?",
+#                     key="chat_input"
+#                 )
+            
+#             with col2:
+#                 submit_button = st.form_submit_button("Send 🚀", type="primary")
+            
+#             if submit_button and question.strip():
+#                 self._process_question(thread_id, file_id, question)
+#                 st.rerun()
+        
+#         # Quick action buttons
+#         col1, col2, col3 = st.columns(3)
+        
+#         with col1:
+#             if st.button("📝 Summarize Document"):
+#                 self._process_question(thread_id, file_id, "Please provide a comprehensive summary of this document.")
+#                 st.rerun()
+        
+#         with col2:
+#             if st.button("🔑 Key Points"):
+#                 self._process_question(thread_id, file_id, "What are the key points and main takeaways from this document?")
+#                 st.rerun()
+        
+#         with col3:
+#             if st.button("❓ Ask Anything"):
+#                 question = st.text_input("Custom question:", key="custom_question")
+#                 if question:
+#                     self._process_question(thread_id, file_id, question)
+#                     st.rerun()
+    
+#     def _process_question(self, thread_id, file_id, question):
+#         """Process a user question and generate response"""
+#         with st.spinner("🤔 Thinking..."):
+#             try:
+#                 # Step 1: Query similar documents from ChromaDB
+#                 relevant_sources = self.file_manager.query_documents(
+#                     query=question,
+#                     file_id=file_id,
+#                     n_results=5
+#                 )
+                
+#                 if not relevant_sources:
+#                     st.error("No relevant content found in the document.")
+#                     return
+                
+#                 # Step 2: Prepare context for LLM
+#                 context = self._prepare_context(relevant_sources, question)
+                
+#                 # Step 3: Generate response using Gemini
+#                 response = self._generate_response(context, question)
+                
+#                 # Step 4: Save to thread
+#                 self.chat_memory.add_message_to_thread(
+#                     thread_id=thread_id,
+#                     question=question,
+#                     answer=response,
+#                     sources=relevant_sources
+#                 )
+                
+#                 st.success("✅ Response generated successfully!")
+                
+#             except Exception as e:
+#                 st.error(f"Error processing question: {str(e)}")
+    
+#     def _prepare_context(self, sources, question):
+#         """Prepare context from relevant sources"""
+#         context_parts = []
+        
+#         for i, source in enumerate(sources):
+#             context_parts.append(
+#                 f"Source {i+1} (Page {source['page_number']}):\n{source['content']}\n"
+#             )
+        
+#         context = "\n".join(context_parts)
+        
+#         prompt = f"""
+#         Based on the following context from the document, please answer the user's question.
+        
+#         Context:
+#         {context}
+        
+#         Question: {question}
+        
+#         Instructions:
+#         - Provide a comprehensive and accurate answer based on the context
+#         - If the context doesn't contain enough information, say so clearly
+#         - Reference specific parts of the document when relevant
+#         - Be concise but thorough
+        
+#         Answer:
+#         """
+        
+#         return prompt
+    
+#     def _generate_response(self, context, question):
+#         """Generate response using Gemini API"""
+#         try:
+#             if not self.model:
+#                 return "Sorry, the AI model is not available. Please check your API configuration."
+            
+#             response = self.model.generate_content(context)
+#             return response.text
+            
+#         except Exception as e:
+#             st.error(f"Error generating response: {str(e)}")
+#             return f"I apologize, but I encountered an error while processing your question: {str(e)}"
+    
+#     def _display_thread_controls(self, thread_id):
+#         """Display thread control buttons"""
+#         col1, col2, col3 = st.columns(3)
+        
+#         with col1:
+#             if st.button("🔄 New Thread"):
+#                 st.session_state.current_thread_id = None
+#                 st.rerun()
+        
+#         with col2:
+#             if st.button("📋 Thread History"):
+#                 # Show thread management
+#                 st.session_state.show_thread_history = True
+#                 st.rerun()
+        
+#         with col3:
+#             if st.button("🗑️ Delete Thread"):
+#                 if self.chat_memory.delete_thread(thread_id):
+#                     st.session_state.current_thread_id = None
+#                     st.success("Thread deleted successfully!")
+#                     st.rerun()

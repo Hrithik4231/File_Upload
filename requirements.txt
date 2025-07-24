@@ -1,0 +1,9 @@
+streamlit
+PyMuPDF
+chromadb
+google-generativeai
+sentence-transformers
+pandas
+numpy
+typing-extensions
+pydantic

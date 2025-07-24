@@ -331,3 +331,272 @@ class ChatSidebar:
             return True
         return False
     
+
+# import streamlit as st
+# from typing import Dict, List, Optional
+
+# class ChatSidebar:
+#     """Chat sidebar that manages file selection and thread navigation with ChromaDB"""
+    
+#     def __init__(self, file_manager, chat_memory):
+#         self.file_manager = file_manager
+#         self.chat_memory = chat_memory
+    
+#     def render_sidebar(self):
+#         """Render the chat sidebar"""
+#         st.subheader("💬 Chat Controls")
+        
+#         # File selection section
+#         self._render_file_selection()
+        
+#         st.markdown("---")
+        
+#         # Thread management section
+#         selected_file_id = st.session_state.get('selected_pdf_id')
+#         if selected_file_id:
+#             self._render_thread_management(selected_file_id)
+        
+#         st.markdown("---")
+        
+#         # Quick stats
+#         self._render_quick_stats()
+    
+#     def _render_file_selection(self):
+#         """Render file selection dropdown"""
+#         st.markdown("### 📄 Select Document")
+        
+#         # Get all files
+#         metadata = self.file_manager.load_metadata()
+        
+#         if not metadata:
+#             st.info("No documents available. Upload a document first!")
+#             return
+        
+#         # Create options for selectbox
+#         file_options = {}
+#         file_labels = []
+        
+#         for file_id, file_info in metadata.items():
+#             label = f"📄 {file_info['filename']}"
+#             file_options[label] = file_id
+#             file_labels.append(label)
+        
+#         # Current selection
+#         current_file_id = st.session_state.get('selected_pdf_id')
+#         current_index = 0
+        
+#         if current_file_id and current_file_id in metadata:
+#             current_filename = metadata[current_file_id]['filename']
+#             current_label = f"📄 {current_filename}"
+#             if current_label in file_labels:
+#                 current_index = file_labels.index(current_label)
+        
+#         # File selection
+#         selected_label = st.selectbox(
+#             "Choose a document:",
+#             file_labels,
+#             index=current_index,
+#             key="file_selector"
+#         )
+        
+#         selected_file_id = file_options[selected_label]
+        
+#         # Update session state if selection changed
+#         if st.session_state.get('selected_pdf_id') != selected_file_id:
+#             st.session_state.selected_pdf_id = selected_file_id
+#             st.session_state.current_thread_id = None  # Reset thread selection
+#             st.rerun()
+        
+#         # Display file info
+#         if selected_file_id in metadata:
+#             file_info = metadata[selected_file_id]
+#             st.caption(f"📊 {file_info.get('chunk_count', 0)} chunks")
+#             st.caption(f"📅 {self.file_manager.format_datetime(file_info['created_at'])}")
+    
+#     def _render_thread_management(self, file_id):
+#         """Render thread management section"""
+#         st.markdown("### 💭 Chat Threads")
+        
+#         # Get threads for selected file
+#         threads = self.chat_memory.get_threads_for_pdf(file_id)
+        
+#         if not threads:
+#             st.info("No conversations yet. Start chatting to create threads!")
+#             return
+        
+#         # Current thread selection
+#         current_thread_id = st.session_state.get('current_thread_id')
+        
+#         # Create thread options
+#         thread_options = {}
+#         thread_labels = ["➕ Start New Thread"]
+#         thread_options[thread_labels[0]] = None
+        
+#         for thread in threads:
+#             title = thread.get('title', 'Untitled')[:30]
+#             if len(thread.get('title', '')) > 30:
+#                 title += "..."
+            
+#             msg_count = thread.get('message_count', 0)
+#             label = f"💬 {title} ({msg_count} msgs)"
+#             thread_options[label] = thread['thread_id']
+#             thread_labels.append(label)
+        
+#         # Find current selection index
+#         current_index = 0
+#         if current_thread_id:
+#             for i, (label, thread_id) in enumerate(thread_options.items()):
+#                 if thread_id == current_thread_id:
+#                     current_index = i
+#                     break
+        
+#         # Thread selection
+#         selected_label = st.selectbox(
+#             "Select conversation:",
+#             thread_labels,
+#             index=current_index,
+#             key="thread_selector"
+#         )
+        
+#         selected_thread_id = thread_options[selected_label]
+        
+#         # Update session state if selection changed
+#         if st.session_state.get('current_thread_id') != selected_thread_id:
+#             st.session_state.current_thread_id = selected_thread_id
+#             st.rerun()
+        
+#         # Display thread info
+#         if selected_thread_id:
+#             thread_info = next((t for t in threads if t['thread_id'] == selected_thread_id), None)
+#             if thread_info:
+#                 st.caption(f"📅 {self.chat_memory.format_datetime(thread_info.get('updated_at'))}")
+                
+#                 # Thread actions
+#                 col1, col2 = st.columns(2)
+#                 with col1:
+#                     if st.button("✏️ Rename", key="rename_thread"):
+#                         self._handle_thread_rename(selected_thread_id, thread_info)
+                
+#                 with col2:
+#                     if st.button("🗑️ Delete", key="delete_thread"):
+#                         self._handle_thread_delete(selected_thread_id, thread_info)
+    
+#     def _handle_thread_rename(self, thread_id, thread_info):
+#         """Handle thread renaming"""
+#         with st.form("rename_thread_form"):
+#             new_title = st.text_input(
+#                 "New thread title:",
+#                 value = (thread_info.get('title') or ''),
+#                 max_chars = 100
+#             )
+            
+#             col1, col2 = st.columns(2)
+#             with col1:
+#                 if st.form_submit_button("💾 Save"):
+#                     if new_title is not None and new_title.strip():
+#                         if self.chat_memory.update_thread_title(thread_id, new_title.strip()):
+#                             st.success("✅ Thread renamed!")
+#                             st.rerun()
+#                         else:
+#                             st.error("❌ Failed to rename thread")
+#                     else:
+#                         st.error("Please enter a valid title")
+            
+#             with col2:
+#                 if st.form_submit_button("❌ Cancel"):
+#                     st.rerun()
+    
+#     def _handle_thread_delete(self, thread_id, thread_info):
+#         """Handle thread deletion"""
+#         st.warning(f"⚠️ Delete '{thread_info.get('title', 'Untitled')}'?")
+#         st.caption("This will permanently delete all messages in this thread.")
+        
+#         col1, col2 = st.columns(2)
+#         with col1:
+#             if st.button("🗑️ Delete", key="confirm_delete_thread", type="primary"):
+#                 if self.chat_memory.delete_thread(thread_id):
+#                     st.success("✅ Thread deleted!")
+#                     st.session_state.current_thread_id = None
+#                     st.rerun()
+#                 else:
+#                     st.error("❌ Failed to delete thread")
+        
+#         with col2:
+#             if st.button("↩️ Cancel", key="cancel_delete_thread"):
+#                 st.rerun()
+    
+#     def _render_quick_stats(self):
+#         """Render quick statistics"""
+#         st.markdown("### 📊 Quick Stats")
+        
+#         # Get database stats
+#         stats = self.file_manager.get_database_stats()
+        
+#         # Display metrics
+#         col1, col2 = st.columns(2)
+        
+#         with col1:
+#             st.metric("📄 Files", stats['total_files'])
+#             st.metric("🧵 Threads", stats['total_threads'])
+        
+#         with col2:
+#             st.metric("📝 Chunks", stats['total_chunks'])
+#             st.metric("💬 Messages", stats['total_messages'])
+        
+#         # Current file stats
+#         selected_file_id = st.session_state.get('selected_pdf_id')
+#         if selected_file_id:
+#             threads = self.chat_memory.get_threads_for_pdf(selected_file_id)
+#             total_messages = sum(t.get('message_count', 0) for t in threads)
+            
+#             st.markdown("**Current Document:**")
+#             st.caption(f"💭 {len(threads)} threads")
+#             st.caption(f"💬 {total_messages} messages")
+        
+#         # Search functionality
+#         st.markdown("### 🔍 Search Threads")
+#         search_query = st.text_input(
+#             "Search conversations:",
+#             placeholder="Search by content...",
+#             key="thread_search"
+#         )
+        
+#         if search_query:
+#             self._display_search_results(search_query)
+    
+#     def _display_search_results(self, query):
+#         """Display search results"""
+#         matching_threads = self.chat_memory.search_threads(query)
+        
+#         if matching_threads:
+#             st.markdown(f"**Found {len(matching_threads)} matches:**")
+            
+#             for thread in matching_threads[:5]:  # Limit to 5 results
+#                 title = thread.get('title', 'Untitled')[:25]
+#                 if len(thread.get('title', '')) > 25:
+#                     title += "..."
+                
+#                 if st.button(
+#                     f"💬 {title}",
+#                     key=f"search_result_{thread['thread_id']}",
+#                     help=f"File: {thread.get('pdf_filename', 'Unknown')}"
+#                 ):
+#                     # Set the file and thread
+#                     st.session_state.selected_pdf_id = thread['pdf_file_id']
+#                     st.session_state.current_thread_id = thread['thread_id']
+#                     st.rerun()
+#         else:
+#             st.caption("No matching threads found.")
+    
+#     def get_selected_file_id(self) -> Optional[str]:
+#         """Get the currently selected file ID"""
+#         return st.session_state.get('selected_pdf_id')
+    
+#     def get_selected_thread_id(self) -> Optional[str]:
+#         """Get the currently selected thread ID"""
+#         return st.session_state.get('current_thread_id')
+    
+#     def reset_selections(self):
+#         """Reset file and thread selections"""
+#         st.session_state.selected_pdf_id = None
+#         st.session_state.current_thread_id = None

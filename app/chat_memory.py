@@ -303,3 +303,180 @@ class ChatMemoryManager:
                 
         except Exception:
             return "Unknown"
+
+
+# import datetime
+# from typing import List, Dict, Optional
+# import streamlit as st
+# from .chromadb_manager import ChromaDBManager
+
+# def parse_datetime(dt):
+#     if isinstance(dt, str):
+#         try:
+#             return datetime.datetime.fromisoformat(dt.replace('T', ' '))
+#         except:
+#             return datetime.datetime.now()
+#     return dt
+
+# class ChatMemoryManager:
+#     """Manages chat thread storage and retrieval using ChromaDB"""
+    
+#     def __init__(self):
+#         self.chromadb = ChromaDBManager()
+    
+#     def ensure_directories(self):
+#         """Not needed with ChromaDB - kept for compatibility"""
+#         pass
+    
+#     def load_threads_index(self) -> List[Dict]:
+#         """Load threads index from ChromaDB"""
+#         return self.chromadb.get_all_threads()
+    
+#     def save_threads_index(self, threads: List[Dict]):
+#         """Not needed with ChromaDB - kept for compatibility"""
+#         pass
+    
+#     def create_new_thread(self, pdf_file_id: str, pdf_filename: str, first_question: str) -> str:
+#         """Create a new chat thread in ChromaDB"""
+#         return self.chromadb.create_chat_thread(pdf_file_id, pdf_filename, first_question)
+    
+#     def save_thread_messages(self, thread_id: str, messages: List[Dict]):
+#         """Save messages for a specific thread - handled by add_message_to_thread"""
+#         # This method is kept for compatibility but messages are added individually
+#         pass
+    
+#     def load_thread_messages(self, thread_id: str) -> List[Dict]:
+#         """Load messages for a specific thread from ChromaDB"""
+#         return self.chromadb.get_thread_messages(thread_id)
+    
+#     def update_thread_metadata(self, thread_id: str, updates: Dict) -> bool:
+#         """Update thread metadata in ChromaDB"""
+#         return self.chromadb.update_thread_metadata(thread_id, updates)
+    
+#     def update_thread_title(self, thread_id: str, new_title: str) -> bool:
+#         """Update thread title in ChromaDB"""
+#         try:
+#             success = self.chromadb.update_thread_metadata(thread_id, {
+#                 'title': new_title.strip(),
+#                 'updated_at': datetime.datetime.now().isoformat()
+#             })
+#             return success
+#         except Exception as e:
+#             st.error(f"Error updating thread title: {str(e)}")
+#             return False
+    
+#     def delete_thread(self, thread_id: str) -> bool:
+#         """Delete a chat thread from ChromaDB"""
+#         return self.chromadb.delete_thread(thread_id)
+    
+#     def get_thread_by_id(self, thread_id: str) -> Optional[Dict]:
+#         """Get thread metadata by ID"""
+#         threads = self.load_threads_index()
+#         return next((t for t in threads if t['thread_id'] == thread_id), None)
+    
+#     def get_threads_for_pdf(self, pdf_file_id: str) -> List[Dict]:
+#         """Get all threads for a specific PDF"""
+#         return self.chromadb.get_threads_for_pdf(pdf_file_id)
+    
+#     def add_message_to_thread(self, thread_id: str, question: str, answer: str, sources: Optional[List[Dict]] = None):
+#         """Add a new message pair to a thread in ChromaDB"""
+#         self.chromadb.add_message_to_thread(thread_id, question, answer, sources)
+    
+#     def search_threads(self, query: str) -> List[Dict]:
+#         """Search threads by title or content using ChromaDB"""
+#         return self.chromadb.search_threads(query)
+    
+#     def cleanup_orphaned_threads(self, valid_pdf_ids: List[str]) -> int:
+#         """Remove threads for PDFs that no longer exist"""
+#         try:
+#             threads = self.load_threads_index()
+#             deleted_count = 0
+            
+#             for thread in threads:
+#                 if thread.get('pdf_file_id') not in valid_pdf_ids:
+#                     if self.delete_thread(thread['thread_id']):
+#                         deleted_count += 1
+            
+#             return deleted_count
+            
+#         except Exception as e:
+#             st.error(f"Error cleaning up orphaned threads: {str(e)}")
+#             return 0
+    
+#     def get_thread_stats(self) -> Dict:
+#         """Get statistics about stored threads"""
+#         try:
+#             stats = self.chromadb.get_database_stats()
+#             threads = self.load_threads_index()
+            
+#             if not threads:
+#                 return {
+#                     'total_threads': 0,
+#                     'total_messages': 0,
+#                     'oldest_thread': None,
+#                     'newest_thread': None
+#                 }
+            
+#             # Safe datetime handling
+#             def get_datetime(thread, field):
+#                 dt = thread.get(field)
+#                 if isinstance(dt, str):
+#                     try:
+#                         return datetime.datetime.fromisoformat(dt.replace('T', ' '))
+#                     except:
+#                         return datetime.datetime.min
+#                 elif isinstance(dt, datetime.datetime):
+#                     return dt
+#                 else:
+#                     return datetime.datetime.min
+            
+#             oldest_thread = min(threads, key=lambda x: get_datetime(x, 'created_at'))
+#             newest_thread = max(threads, key=lambda x: get_datetime(x, 'created_at'))
+            
+#             return {
+#                 'total_threads': stats['total_threads'],
+#                 'total_messages': stats['total_messages'],
+#                 'oldest_thread': oldest_thread.get('created_at'),
+#                 'newest_thread': newest_thread.get('created_at')
+#             }
+            
+#         except Exception as e:
+#             st.error(f"Error getting thread stats: {str(e)}")
+#             return {
+#                 'total_threads': 0,
+#                 'total_messages': 0,
+#                 'oldest_thread': None,
+#                 'newest_thread': None
+#             }
+    
+#     @staticmethod
+#     def format_datetime(dt) -> str:
+#         """Format datetime for display"""
+#         try:
+#             if isinstance(dt, str):
+#                 try:
+#                     dt = datetime.datetime.fromisoformat(dt.replace('T', ' '))
+#                 except:
+#                     return dt
+#             elif not isinstance(dt, datetime.datetime):
+#                 return "Unknown"
+            
+#             now = datetime.datetime.now()
+#             diff = now - dt
+            
+#             if diff.days == 0:
+#                 if diff.seconds < 3600:  # Less than 1 hour
+#                     minutes = diff.seconds // 60
+#                     return f"{minutes}m ago" if minutes > 0 else "Just now"
+#                 else:  # Less than 1 day
+#                     hours = diff.seconds // 3600
+#                     return f"{hours}h ago"
+#             elif diff.days == 1:
+#                 return "Yesterday"
+#             elif diff.days < 7:
+#                 return f"{diff.days}d ago"
+#             else:
+#                 return dt.strftime("%b %d")
+                
+#         except Exception:
+#             return "Unknown"
